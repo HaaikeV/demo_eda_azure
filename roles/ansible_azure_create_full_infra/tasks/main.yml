@@ -50,13 +50,13 @@
     resource_group: "{{ azure_resource_group }}"
     name: "{{ azure_vm_instance_name }}"
     vm_size: "{{ azure_vm_size }}"
-    priority: Spot
     admin_username: ansible
     virtual_network_name: "{{ azure_pnetwork_name }}"
     ssh_password_enabled: false
     ssh_public_keys:
       - path: /home/ansible/.ssh/authorized_keys
         key_data: "{{ azure_ssh_public_key }}"
+    network_interface: "{{ azure_vm_nic_name }}"
     image:
       offer: "{{ azure_vm_image_offer }}"
       publisher: "{{ azure_vm_image_publisher }}"
@@ -66,9 +66,9 @@
   register: linux_vm
 
 - name: store Linux VM facts
-  ansible.builtin.set_fact:
+  set_fact:
     vm: "{{ linux_vm }}"
 
 - name: print instance details
-  ansible.builtin.debug:
+  debug:
     msg: "Instance IP address is {{ vm.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress }}"

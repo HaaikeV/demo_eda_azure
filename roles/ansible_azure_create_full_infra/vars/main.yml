@@ -16,7 +16,7 @@ azure_vm_managed_disk_type: Standard_LRS
 azure_ssh_public_key: eda_test
 azure_vm_image_offer: "RHEL"
 azure_vm_image_publisher: RedHat
-azure_vm_image_sku: "8"
+azure_vm_image_sku: '8.1'
 azure_vm_image_version: latest
 
 
