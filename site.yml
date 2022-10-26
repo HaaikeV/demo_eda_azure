@@ -1,4 +1,5 @@
 - name: Create a vm in either Azure or AWS
+  hosts: localhost
   gather_facts: true
   vars:
    ansible_connection: local
