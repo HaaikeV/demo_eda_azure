@@ -46,7 +46,7 @@
     security_group: "{{ azure_sgroup_name }}"
 
 - name: create Linux Virtual Machine {{ instance_name }} - this can take a minute
-  azure.azcollection.azure_rm_virtualmachine:
+  azure_rm_virtualmachine:
     resource_group: "{{ azure_resource_group }}"
     name: "{{ azure_vm_instance_name }}"
     vm_size: "{{ azure_vm_size }}"
