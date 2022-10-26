@@ -56,7 +56,7 @@
     ssh_public_keys:
       - path: /home/ansible/.ssh/authorized_keys
         key_data: "{{ azure_ssh_public_key }}"
-    network_interface: "{{ azure_vm_nic_name }}"
+    network_interfaces: "{{ azure_vm_nic_name }}"
     image:
       offer: "{{ azure_vm_image_offer }}"
       publisher: "{{ azure_vm_image_publisher }}"
