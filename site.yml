@@ -5,6 +5,3 @@
   tasks:
    - include_role:
        name: ansible_azure_create_full_infra
-      
-    
-
