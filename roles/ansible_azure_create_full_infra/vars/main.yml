@@ -1,0 +1,23 @@
+---
+# vars file for roles/ansible_azure_create_full_infra
+azure_resource_group: openenv-wn2sj
+azure_pnetwork_name: "{{ azure_resource_group }}-vnet"
+azure_pnetwork_cidr: 10.1.0.0/16
+azure_pnetwork_subnet_name: "{{ azure_resource_group }}-subnet"
+azure_pnetwork_subnet_cidr: 10.1.0.0/24
+azure_vm_public_ip: "{{ azure_resource_group }}-pip"
+azure_sgroup_name: "{{ azure_resource_group }}-sg"
+azure_vm_nic_name: "{{ azure_resource_group }}-{{ azure_vm_instance_name }}-nic"
+azure_vm_os_type: linux
+azure_vm_admin_username: ansible
+azure_vm_instance_name: rhelvm
+azure_vm_size: Standard_D4ds_v4
+azure_vm_managed_disk_type: Standard_LRS
+azure_ssh_public_key: eda_test
+azure_vm_image_offer: "RHEL"
+azure_vm_image_publisher: RedHat
+azure_vm_image_sku: "8"
+azure_vm_image_version: latest
+
+
+

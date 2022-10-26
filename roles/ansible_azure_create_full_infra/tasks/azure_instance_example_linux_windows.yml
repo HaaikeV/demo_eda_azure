@@ -1,0 +1,144 @@
+---
+- name: check if resource group already exists
+  azure.azcollection.azure_rm_resourcegroup_info:
+    name: "{{ azure_resource_group }}"
+  register: resource_group
+
+- name: create resource group {{ azure_resource_group }}
+  azure.azcollection.azure_rm_resourcegroup:
+    name: "{{ azure_resource_group }}"
+    location: "{{ azure_location }}"
+    state: present
+  when: resource_group.resourcegroups == []
+
+- name: set private network
+  ansible.builtin.set_fact:
+    private_network: "{{ azure_private_network }}"
+  when: azure_private_network is defined
+
+- name: set private network
+  ansible.builtin.set_fact:
+    private_network: "{{ instance_name }}"
+  when: azure_private_network is not defined
+
+- name: create virtual network {{ private_network }}
+  azure.azcollection.azure_rm_virtualnetwork:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ private_network }}"
+    address_prefixes_cidr: "10.1.0.0/16"
+    state: present
+
+- name: create subnet {{ private_network }}
+  azure.azcollection.azure_rm_subnet:
+    resource_group: "{{ azure_resource_group }}"
+    virtual_network_name: "{{ private_network }}"
+    name: "{{ private_network }}"
+    address_prefix_cidr: "10.1.0.0/24"
+
+- name: set port lists for Linux
+  ansible.builtin.set_fact:
+    port_list:
+      - 80
+      - 443
+      - 22
+  when: azure_os_type == "linux"
+
+- name: set port lists for Windows
+  ansible.builtin.set_fact:
+    port_list:
+      - 80
+      - 443
+      - 3389
+      - 5986
+  when: azure_os_type == "windows"
+
+- name: expand port list with additional port
+  ansible.builtin.set_fact:
+    port_list: "{{ port_list + [ instance_additional_port ] }}"
+  when: instance_additional_port is defined
+
+- name: create Linux Virtual Machine {{ instance_name }} - this can take a minute
+  azure.azcollection.azure_rm_virtualmachine:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ instance_name }}"
+    vm_size: "{{ instance_flavor }}"
+    managed_disk_type: "{{ azure_disk_type }}"
+    admin_username: ansible
+    virtual_network_name: "{{ private_network }}"
+    open_ports: "{{ port_list }}"
+    ssh_password_enabled: false
+    ssh_public_keys:
+      - path: /home/ansible/.ssh/authorized_keys
+        key_data: "{{ azure_ssh_public_key }}"
+    image:
+      offer: "{{ azure_image_offer }}"
+      publisher: "{{ azure_image_publisher }}"
+      sku: "{{ azure_image_sku }}"
+      version: latest
+    state: present
+  register: linux_vm
+  when: azure_os_type == "linux"
+
+- name: create Windows Virtual Machine {{ instance_name }} - this can take a minute
+  azure.azcollection.azure_rm_virtualmachine:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ instance_name }}"
+    vm_size: "{{ instance_flavor }}"
+    managed_disk_type: "{{ azure_disk_type }}"
+    admin_username: ansible
+    admin_password: "{{ windows_admin_password }}"
+    os_type: Windows
+    virtual_network_name: "{{ private_network }}"
+    open_ports: "{{ port_list }}"
+    image:
+      offer: "{{ azure_image_offer }}"
+      publisher: "{{ azure_image_publisher }}"
+      sku: "{{ azure_image_sku }}"
+      version: latest
+    state: present
+  register: windows_vm
+  when: azure_os_type == "windows"
+
+- name: create VM script extension to enable HTTPS WinRM listener
+  azure.azcollection.azure_rm_virtualmachineextension:
+    name: winrm-extension
+    resource_group: "{{ azure_resource_group }}"
+    virtual_machine_name: "{{ instance_name }}"
+    publisher: Microsoft.Compute
+    virtual_machine_extension_type: CustomScriptExtension
+    type_handler_version: '1.9'
+    settings: '{"fileUris": ["https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1"],"commandToExecute": "powershell -ExecutionPolicy Unrestricted -File ConfigureRemotingForAnsible.ps1"}'
+    auto_upgrade_minor_version: true
+  when: azure_os_type == "windows"
+
+- name: store Linux VM facts
+  ansible.builtin.set_fact:
+    vm: "{{ linux_vm }}"
+  when: azure_os_type == "linux"
+
+- name: store Windows VM facts
+  ansible.builtin.set_fact:
+    vm: "{{ windows_vm }}"
+  when: azure_os_type == "windows"
+
+- name: print instance details
+  ansible.builtin.debug:
+    msg: "Instance IP address is {{ vm.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress }}"
+
+- name: update DNS record
+  ansible.builtin.include_role:
+    name: nsupdate
+  vars:
+    ipaddress: "{{ vm.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress }}"
+    shortname: "{{ instance_name }}"
+    mode: update
+  when: dns_update | bool
+
+- name: add host to in memory inventory
+  ansible.builtin.add_host:
+    name: "{{ instance_name }}"
+    ansible_host: "{{ instance_name }}.{{ dns_suffix }}.ansible-labs.de"
+    ansible_user: ansible
+    groups:
+      - "{{ instance_group | default ('all_hosts') }}"
+  when: dns_update | bool

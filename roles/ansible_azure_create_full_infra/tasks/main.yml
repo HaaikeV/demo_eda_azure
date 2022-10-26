@@ -1,0 +1,75 @@
+---
+# tasks file for roles/ansible_azure_create_full_infra
+- name: create virtual network {{ azure_pnetwork_name }}
+  azure.azcollection.azure_rm_virtualnetwork:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ azure_pnetwork_name }}"
+    address_prefixes_cidr: "10.1.0.0/16"
+    state: present
+
+- name: Add subnet {{ azure_pnetwork_subnet_name }} to v-net {{ azure_pnetwork_name }}
+  azure.azcollection.azure_rm_subnet:
+    resource_group: "{{ azure_resource_group }}"
+    virtual_network_name: "{{ azure_pnetwork_name }}"
+    name: "{{ azure_pnetwork_subnet_name }}"
+    address_prefix_cidr: "10.1.0.0/24"
+
+- name: Create public IP address
+  azure_rm_publicipaddress:
+    resource_group: "{{ azure_resource_group }}"
+    allocation_method: Static
+    name: "{{ azure_vm_public_ip }}"
+  register: output_ip_address
+
+- name: Public IP of VM
+  debug:
+    msg: "The public IP is {{ output_ip_address.state.ip_address }}."
+- name: Create Network Security Group that allows SSH
+  azure_rm_securitygroup:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ azure_sgroup_name }}"
+    rules:
+      - name: SSH
+        protocol: Tcp
+        destination_port_range: 22
+        access: Allow
+        priority: 1001
+        direction: Inbound
+
+- name: Create virtual network interface card
+  azure_rm_networkinterface:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ azure_vm_nic_name }}"
+    virtual_network: "{{ azure_pnetwork_name }}"
+    subnet: "{{ azure_pnetwork_subnet_name }}"
+    public_ip_name: "{{ azure_vm_public_ip }}"
+    security_group: "{{ azure_sgroup_name }}"
+
+- name: create Linux Virtual Machine {{ instance_name }} - this can take a minute
+  azure.azcollection.azure_rm_virtualmachine:
+    resource_group: "{{ azure_resource_group }}"
+    name: "{{ azure_vm_instance_name }}"
+    vm_size: "{{ azure_vm_size }}"
+    priority: Spot
+    admin_username: ansible
+    virtual_network_name: "{{ azure_pnetwork_name }}"
+    open_ports: "{{ port_list }}"
+    ssh_password_enabled: false
+    ssh_public_keys:
+      - path: /home/ansible/.ssh/authorized_keys
+        key_data: "{{ azure_ssh_public_key }}"
+    image:
+      offer: "{{ azure_vm_image_offer }}"
+      publisher: "{{ azure_vm_image_publisher }}"
+      sku: "{{ azure_vm_image_sku }}"
+      version: latest
+    state: present
+  register: linux_vm
+
+- name: store Linux VM facts
+  ansible.builtin.set_fact:
+    vm: "{{ linux_vm }}"
+
+- name: print instance details
+  ansible.builtin.debug:
+    msg: "Instance IP address is {{ vm.ansible_facts.azure_vm.properties.networkProfile.networkInterfaces[0].properties.ipConfigurations[0].properties.publicIPAddress.properties.ipAddress }}"
