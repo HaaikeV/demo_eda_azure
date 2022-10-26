@@ -1,14 +1,14 @@
 ---
 # tasks file for roles/ansible_azure_create_full_infra
 - name: create virtual network {{ azure_pnetwork_name }}
-  azure.azcollection.azure_rm_virtualnetwork:
+  azure_rm_virtualnetwork:
     resource_group: "{{ azure_resource_group }}"
     name: "{{ azure_pnetwork_name }}"
     address_prefixes_cidr: "10.1.0.0/16"
     state: present
 
 - name: Add subnet {{ azure_pnetwork_subnet_name }} to v-net {{ azure_pnetwork_name }}
-  azure.azcollection.azure_rm_subnet:
+  azure_rm_subnet:
     resource_group: "{{ azure_resource_group }}"
     virtual_network_name: "{{ azure_pnetwork_name }}"
     name: "{{ azure_pnetwork_subnet_name }}"
