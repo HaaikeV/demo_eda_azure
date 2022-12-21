@@ -1,6 +1,6 @@
 ---
 # vars file for roles/ansible_azure_create_full_infra
-azure_resource_group: openenv-wn2sj
+azure_resource_group: openenv-wn2s
 azure_pnetwork_name: "{{ azure_resource_group }}-vnet"
 azure_pnetwork_cidr: 10.1.0.0/16
 azure_pnetwork_subnet_name: "{{ azure_resource_group }}-subnet"
